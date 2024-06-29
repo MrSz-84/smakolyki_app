@@ -1,5 +1,7 @@
-import config.config as config
+import re
 import json
+import requests
+import config.config as config
 
 
 def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth=None, phrase=None,
@@ -25,27 +27,38 @@ def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth
         return req_types.get(req_type)
 
 
-def validate_error_message(request, requests):
-    if request not in requests.keys():
+def validate_error_message(request, requests_pool):
+    if request not in requests_pool.keys():
         return False
     else:
         try:
-            none_present = 'None' in requests.get(request)
+            none_present = 'None' in requests_pool.get(request)
         except TypeError:
             return False
     return none_present
 
 
-with open(config.KEY, encoding='utf-8') as file:
-    auth_ = json.load(file)['Authorization']
-API_BASE_REQ = 'https://www.googleapis.com/blogger/v3/blogs/'
-BLOG_ID = '3417787614555634377'
-BLOG_URL = 'https://smakolykibereniki.blogspot.com/'
+def get_blog_id(url):
+    blog_pattern = re.compile(r'blog-([0-9]*)<', re.I)
+    blogger = re.compile(r'tag:blogger.com')
+    # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
+    blog_id = ''
+    url = f'https://{url}/feeds/posts/default'
+    with requests.get(url, stream=True) as r:
+        for chunk in r.iter_content(chunk_size=1600, decode_unicode=True):
+            if not isinstance(blogger, re.Match):
+                blogger = re.search(blogger, chunk)
+                print(blogger)
+                exit()
+            if not isinstance(blog_id, re.Match):
+                blog_id = re.search(blog_pattern, chunk)
+            if blog_id is not None:
+                return blog_id.group(1)
 
 
-# return_request_url(req_type='', base_req_body=API_BASE_REQ)
-aaa = return_request_url(req_type='by_url', auth=auth_, blog_url=BLOG_URL, base_req_body=API_BASE_REQ)
-print(aaa)
 
 
-# TODO create test for this function: return_request_url()
+
+
+def is_blogger(url):
+    ...
