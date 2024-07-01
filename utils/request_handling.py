@@ -1,12 +1,15 @@
 import re
 import json
 import requests
-import config.config as config
+import config.config as cnf
 import utils.various as various
 
 
 def input_func():
-    return input('Type in blog`s name: ')
+    the_input = input('Type in blog`s name: ')
+    if len(the_input) == 0:
+        the_input = cnf.BASE_BLOG_NAME
+    return the_input
 
 
 def input_blog_address():
@@ -50,7 +53,7 @@ def check_response_code(to_check):
             else:
                 print('Connection Invalid')
                 return False
-    except requests.ConnectionError:
+    except (requests.ConnectionError, requests.exceptions.InvalidURL):
         print('Connection Error')
         return False
 
