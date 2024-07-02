@@ -1,6 +1,8 @@
 import pytest
 import json
 import sys
+import requests_mock
+import requests
 from config import config as cnf
 from utils import request_handling as req
 
@@ -228,3 +230,50 @@ def test_input_blog_address_output_response_validation(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert 'Inputted value contains more than blog`s name.' not in captured.out
     assert 'Requested blog seems to not respond, try one more time.' in captured.out
+
+
+def test_validate_blog_name():
+    names = iter(['https://blog', 'blog.blogspot.com',
+                  'http://bloggg', 'blog.com/',
+                  'blog/', 'blog'])
+
+    def provide_names():
+        return next(names)
+
+    assert req.validate_blog_name(provide_names()) is False, 'Should be False but is True'
+    assert req.validate_blog_name(provide_names()) is False, 'Should be False but is True'
+    assert req.validate_blog_name(provide_names()) is False, 'Should be False but is True'
+    assert req.validate_blog_name(provide_names()) is False, 'Should be False but is True'
+    assert req.validate_blog_name(provide_names()) is False, 'Should be False but is True'
+    assert req.validate_blog_name(provide_names()) is True, 'Should be True but is False'
+
+
+def test_response_code(requests_mock):
+    valid_response = 'foobazbar'
+    invalid_response = 'foobazbaromg'
+    totally_wrong_url = 'some_verry_bad_url.blogspot.pl'
+    blogs = iter([valid_response, invalid_response, totally_wrong_url])
+
+    def provide_data():
+        name_ = next(blogs)
+        address = f'https://{name_}.blogspot.com/'
+        return name_, address
+
+    # # Uncomment this to test real responses
+    # assert req.check_response_code(provide_data()) is True
+    # assert req.check_response_code(provide_data()) is False
+    # assert req.check_response_code(provide_data()) is False
+
+    # mock responses comment out if user wants to conduct test with real responses.
+    name, url = provide_data()
+    requests_mock.get(url, status_code=200)
+    assert req.check_response_code(name) is True
+    name, url = provide_data()
+    requests_mock.get(url, status_code=404)
+    assert req.check_response_code(name) is False
+    name, url = provide_data()
+    requests_mock.get(url, exc=requests.ConnectionError)
+    assert req.check_response_code(name) is False
+
+# TODO tests for is_blogger and get_blog_id remains.
+#  Both to do with mock response.text.
