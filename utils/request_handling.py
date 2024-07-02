@@ -25,7 +25,7 @@ def input_blog_address():
             continue
         ok_conn = check_response_code(blog_name)
         if not ok_conn:
-            print('Requested blog seems to not respond, try one more time:')
+            print('Requested blog seems to not respond, try one more time.')
             blog_name = input_func()
             ok_name = False
     blog_url = f'https://{blog_name}.blogspot.com/'
