@@ -78,15 +78,12 @@ def is_blogger(url):
 
 
 def get_blog_id(url):
-    blog_pattern = re.compile(r'blog-([0-9]*)<', re.I)
-    blogger = re.compile(r'tag:blogger.com')
+    blog_pattern = re.compile(r'blog-([0-9]+)<', re.I)
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
-    url = f'{url}/feeds/posts/default'
+    url = f'{url}feeds/posts/default'
     with requests.get(url, stream=True) as r:
         for chunk in r.iter_content(chunk_size=1600, decode_unicode=True):
-            if not isinstance(blogger, re.Match):
-                blogger = re.search(blogger, chunk)
             if not isinstance(blog_id, re.Match):
                 blog_id = re.search(blog_pattern, chunk)
             if blog_id is not None:
