@@ -249,6 +249,12 @@ def test_validate_blog_name():
 
 
 def test_response_code(requests_mock):
+    """
+    Test for intercepting requests and mocking the responses.
+    Asserts function behaviour for different response codes.
+    :param requests_mock: requests_mock fixture, for intercepting requests send to HTTP servers.
+    :return: None
+    """
     valid_response = 'foobazbar'
     invalid_response = 'foobazbaromg'
     totally_wrong_url = 'some_verry_bad_url.blogspot.pl'
@@ -259,12 +265,6 @@ def test_response_code(requests_mock):
         address = f'https://{name_}.blogspot.com/'
         return name_, address
 
-    # # Uncomment this to test real responses
-    # assert req.check_response_code(provide_data()) is True
-    # assert req.check_response_code(provide_data()) is False
-    # assert req.check_response_code(provide_data()) is False
-
-    # mock responses comment out if user wants to conduct test with real responses.
     name, url = provide_data()
     requests_mock.get(url, status_code=200)
     assert req.check_response_code(name) is True
@@ -275,5 +275,78 @@ def test_response_code(requests_mock):
     requests_mock.get(url, exc=requests.ConnectionError)
     assert req.check_response_code(name) is False
 
-# TODO tests for is_blogger and get_blog_id remains.
-#  Both to do with mock response.text.
+
+def test_is_blogger(requests_mock):
+    """
+    Test for intercepting requests and mocking the responses.
+    Asserts function behaviour for different response text. Validates if url is a .blogger.com blog
+    :param requests_mock: requests_mock fixture, for intercepting requests send to HTTP servers.
+    :return: None
+    """
+    url = 'https://validresponse.blogspot.com/'
+    res_text = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    requests_mock.get(url, text=res_text)
+    assert req.is_blogger(url) is True
+
+    url = 'https://invalidresponse.blogspot.com/'
+    res_text = '''some fancy text missing some fancy link as b _ l _ o_gger._com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    requests_mock.get(url, text=res_text)
+    assert req.is_blogger(url) is None
+
+    url = 'https://invalidresponse.blogspot.com/'
+    res_text = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' but wait now way this is here! 
+     name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    requests_mock.get(url, text=res_text)
+    assert req.is_blogger(url) is None
+
+    url = 'https://invalidresponse.blogspot.com/'
+    res_text = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feedsaresonothere/postsarelost/defaultdefalttoNone 
+     and some more text'''
+    requests_mock.get(url, text=res_text)
+    assert req.is_blogger(url) is None
+
+
+def test_get_blog_id(requests_mock):
+    """
+    Test for intercepting requests and mocking the responses.
+    Asserts function behaviour for different response text. Validates if function extracts blog ID
+    :param requests_mock: requests_mock fixture, for intercepting requests send to HTTP servers.
+    :return: None
+    """
+    url = 'https://validresponse.blogspot.com/'
+    mocked_url = 'https://validresponse.blogspot.com/feeds/posts/default'
+    res_text = '''fancy text containing >blog-66666666699996< and nothing more i think :)'''
+    requests_mock.get(mocked_url, text=res_text)
+    assert req.get_blog_id(url) == '66666666699996'
+
+    url = 'https://validresponse.blogspot.com/'
+    mocked_url = 'https://validresponse.blogspot.com/feeds/posts/default'
+    res_text = '''fancy text containing >blog-1234567890< and nothing more i think :)'''
+    requests_mock.get(mocked_url, text=res_text)
+    assert req.get_blog_id(url) == '1234567890'
+
+    url = 'https://invalidresponse.blogspot.com/'
+    mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
+    res_text = '''fancy text containing >1234567890< and nothing more i think :)'''
+    requests_mock.get(mocked_url, text=res_text)
+    assert req.get_blog_id(url) is None
+
+    url = 'https://invalidresponse.blogspot.com/'
+    mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
+    res_text = '''fancy text containing >blog-< and nothing more i think :)'''
+    requests_mock.get(mocked_url, text=res_text)
+    assert req.get_blog_id(url) is None
+    #
+    url = 'https://invalidresponse.blogspot.com/'
+    mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
+    res_text = '''but wait! where is the blog id?'''
+    requests_mock.get(mocked_url, text=res_text)
+    assert req.get_blog_id(url) is None
