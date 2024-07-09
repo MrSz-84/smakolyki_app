@@ -53,7 +53,8 @@ def validate_blog_name(name):
 def check_response_code(to_check):
     url = f'https://{to_check}.blogspot.com/'
     try:
-        with requests.get(url, stream=True) as r:
+        with requests.Session() as s:
+            r = s.get(url, stream=True)
             if r.status_code == 200:
                 print('Connection Valid')
                 return True
@@ -66,7 +67,8 @@ def check_response_code(to_check):
 
 
 def is_blogger(url):
-    with requests.get(url, stream=True) as r:
+    with requests.Session() as s:
+        r = s.get(url, stream=True)
         link = re.compile(r'.blogger.com/')
         generator = re.compile(r"<meta content='blogger' name='generator'/>")
         feed = re.compile(r'/feeds/posts/default')
@@ -93,7 +95,8 @@ def get_blog_id(url):
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
     url = f'{url}feeds/posts/default'
-    with requests.get(url, stream=True) as r:
+    with requests.Session() as s:
+        r = s.get(url, stream=True)
         r.encoding = 'UTF-8'
         for chunk in r.iter_content(chunk_size=1600, decode_unicode=True):
             print(chunk)
