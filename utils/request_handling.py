@@ -14,20 +14,27 @@ def input_func():
 
 def input_blog_address():
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
-    blog_name = input_func()
+    # blog_name = input_func()
+    blog_name = 'googlevideo'
     ok_name = False
     ok_conn = False
-    while not ok_name and not ok_conn:
+    ok_blogger = False
+    while not ok_name and not ok_conn and not ok_blogger:
         ok_name = validate_blog_name(blog_name)
+        ok_conn = check_response_code(blog_name)
+        ok_blogger = is_blogger(f'https://{blog_name}.blogspot.com/')
         if not ok_name:
             print('Inputted value contains more than blog`s name.')
             blog_name = input_func()
             continue
-        ok_conn = check_response_code(blog_name)
         if not ok_conn:
             print('Requested blog seems to not respond, try one more time.')
             blog_name = input_func()
             ok_name = False
+        if not ok_blogger:
+            print('Requested blog seems not to be on blogger platform, try one more time.')
+            blog_name = input_func()
+            ok_blogger = False
     blog_url = f'https://{blog_name}.blogspot.com/'
     return blog_url
 
@@ -74,7 +81,11 @@ def is_blogger(url):
             if not isinstance(feed, re.Match):
                 feed_in_link = bool(re.search(feed, chunk))
             if all([blogger_in_link, blogger_as_generator, feed_in_link]):
+                print('Blogger Valid')
                 return True
+            else:
+                print('Blogger Invalid')
+                return False
 
 
 def get_blog_id(url):
@@ -83,7 +94,9 @@ def get_blog_id(url):
     blog_id = ''
     url = f'{url}feeds/posts/default'
     with requests.get(url, stream=True) as r:
+        r.encoding = 'UTF-8'
         for chunk in r.iter_content(chunk_size=1600, decode_unicode=True):
+            print(chunk)
             if not isinstance(blog_id, re.Match):
                 blog_id = re.search(blog_pattern, chunk)
             if blog_id is not None:
@@ -106,7 +119,7 @@ def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth
     }
     none_val_in_req = validate_error_message(req_type, req_types)
     if req_type not in req_types.keys() or 'None' in req_types.get(req_type):
-        raise ValueError(f'Variable req_type not included in possible requests: '
+        raise ValueError(f'Variable req_type "{req_type}" not included in possible requests: '
                          f'{req_type not in req_types}, \nor variables needed for request creation '
                          f'are missing: {none_val_in_req}')
     else:
