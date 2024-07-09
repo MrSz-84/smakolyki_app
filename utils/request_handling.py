@@ -1,8 +1,21 @@
 import re
 import json
 import requests
+import aiohttp
+import asyncio
 import config.config as cnf
 import utils.various as various
+
+
+class ConnectionPool:
+
+    __session = None
+
+    @classmethod
+    async def get_session(cls):
+        if cls.__session is None:
+            cls.__session = aiohttp.ClientSession()
+        return cls.__session
 
 
 def input_func():
@@ -12,7 +25,7 @@ def input_func():
     return the_input
 
 
-def input_blog_address():
+async def input_blog_address(s):
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
     # blog_name = input_func()
     blog_name = 'googlevideo'
@@ -21,8 +34,8 @@ def input_blog_address():
     ok_blogger = False
     while not ok_name and not ok_conn and not ok_blogger:
         ok_name = validate_blog_name(blog_name)
-        ok_conn = check_response_code(blog_name)
-        ok_blogger = is_blogger(f'https://{blog_name}.blogspot.com/')
+        ok_conn = await check_response_code(blog_name, s)
+        ok_blogger = await is_blogger(f'https://{blog_name}.blogspot.com/', s)
         if not ok_name:
             print('Inputted value contains more than blog`s name.')
             blog_name = input_func()
@@ -36,7 +49,8 @@ def input_blog_address():
             blog_name = input_func()
             ok_blogger = False
     blog_url = f'https://{blog_name}.blogspot.com/'
-    return blog_url
+    blog_id = await get_blog_id(blog_url, s)
+    return blog_id
 
 
 def validate_blog_name(name):
@@ -50,12 +64,11 @@ def validate_blog_name(name):
         return False
 
 
-def check_response_code(to_check):
+async def check_response_code(to_check, session):
     url = f'https://{to_check}.blogspot.com/'
     try:
-        with requests.Session() as s:
-            r = s.get(url, stream=True)
-            if r.status_code == 200:
+        async with session.get(url) as r:
+            if r.status == 200:
                 print('Connection Valid')
                 return True
             else:
@@ -66,16 +79,17 @@ def check_response_code(to_check):
         return False
 
 
-def is_blogger(url):
-    with requests.Session() as s:
-        r = s.get(url, stream=True)
-        link = re.compile(r'.blogger.com/')
-        generator = re.compile(r"<meta content='blogger' name='generator'/>")
-        feed = re.compile(r'/feeds/posts/default')
-        blogger_in_link = False
-        blogger_as_generator = False
-        feed_in_link = False
-        for chunk in r.iter_content(chunk_size=1024, decode_unicode=True):
+async def is_blogger(url, session):
+    link = re.compile(rb'.blogger.com/')
+    generator = re.compile(rb"<meta content='blogger' name='generator'/>")
+    feed = re.compile(rb'/feeds/posts/default')
+    blogger_in_link = False
+    blogger_as_generator = False
+    feed_in_link = False
+    async with session.get(url) as r:
+        r.encoding = 'UTF-8'
+        async for chunk in r.content.iter_chunked(1024):
+            chunk.decode('utf-8')
             if not isinstance(link, re.Match):
                 blogger_in_link = bool(re.search(link, chunk))
             if not isinstance(generator, re.Match):
@@ -90,15 +104,14 @@ def is_blogger(url):
                 return False
 
 
-def get_blog_id(url):
-    blog_pattern = re.compile(r'blog-([0-9]+)<', re.I)
+async def get_blog_id(url, session):
+    blog_pattern = re.compile(rb'blog-([0-9]+)<', re.I)
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
     url = f'{url}feeds/posts/default'
-    with requests.Session() as s:
-        r = s.get(url, stream=True)
+    async with session.get(url) as r:
         r.encoding = 'UTF-8'
-        for chunk in r.iter_content(chunk_size=1600, decode_unicode=True):
+        async for chunk in r.content.iter_chunked(1600):
             print(chunk)
             if not isinstance(blog_id, re.Match):
                 blog_id = re.search(blog_pattern, chunk)
