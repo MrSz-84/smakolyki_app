@@ -1,14 +1,11 @@
 import re
 import json
-import requests
 import aiohttp
 import asyncio
 import config.config as cnf
-import utils.various as various
 
 
 class ConnectionPool:
-
     __session = None
 
     @classmethod
@@ -27,17 +24,13 @@ def input_func():
 
 async def input_blog_address(s):
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
-    # blog_name = input_func()
-    blog_name = 'https://googlevideo87263e987?.gog.pl?)__+)L!@*&('
-    # blog_name = 'smakolykibereniki'
-    # blog_name = 'googlevideo'
-    # blog_name = 'learningpythonway'
-    blog_url = f'https://{blog_name}.blogspot.com/'
+    blog_name = input_func()
     ok_name = False
     ok_conn = False
     ok_blogger = False
     blog_id = False
     while not ok_name and not ok_conn and not ok_blogger and not blog_id:
+        blog_url = f'https://{blog_name}.blogspot.com/'
         async with asyncio.TaskGroup() as tg:
             ok_name = tg.create_task(validate_blog_name(blog_name))
             ok_conn = tg.create_task(check_response_code(blog_name, s))
@@ -47,30 +40,18 @@ async def input_blog_address(s):
                 ok_name, ok_conn, ok_blogger, blog_id)
         if not ok_name:
             print('Inputted value contains more than blog`s name.')
-            ok_name = False
-            ok_conn = False
-            ok_blogger = False
             blog_name = input_func()
             continue
         if not ok_conn:
             print('Requested blog seems to not respond, try one more time.')
-            ok_name = False
-            ok_conn = False
-            ok_blogger = False
             blog_name = input_func()
             continue
         if not ok_blogger:
             print('Requested blog seems not to be on blogger platform, try one more time.')
-            ok_name = False
-            ok_conn = False
-            ok_blogger = False
             blog_name = input_func()
             continue
         if not blog_id:
             print('Requested blog seems not to have an ID, try one more time.')
-            ok_name = False
-            ok_conn = False
-            ok_blogger = False
             blog_name = input_func()
             continue
     return blog_id
@@ -78,7 +59,7 @@ async def input_blog_address(s):
 
 async def validate_blog_name(name):
     user_input = name.lower().strip()
-    hits = re.compile(r'^https\D{3}|^http\D{3}|\Dblogspot|\Dblogger|\Dcom|\Dcom$|/$')
+    hits = re.compile(r'^https?|/$|\Dblogspot|\Dcom|[\s!@#$%&*+=,[]{}\\/:;?.]')
     if not bool(re.search(hits, user_input)):
         print('Name Valid')
         return True
@@ -127,7 +108,7 @@ async def is_blogger(url, session):
             return False
     except (aiohttp.client_exceptions.InvalidURL,
             aiohttp.client_exceptions.ClientConnectorError):
-        print('is_blogger falls into except?')
+        print('Blogger Invalid')
         return False
 
 
