@@ -29,11 +29,15 @@ async def input_blog_address(s):
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
     # blog_name = input_func()
     blog_name = 'https://googlevideo87263e987?.gog.pl?)__+)L!@*&('
+    # blog_name = 'smakolykibereniki'
+    # blog_name = 'googlevideo'
+    # blog_name = 'learningpythonway'
     blog_url = f'https://{blog_name}.blogspot.com/'
     ok_name = False
     ok_conn = False
     ok_blogger = False
-    while not ok_name and not ok_conn and not ok_blogger:
+    blog_id = False
+    while not ok_name and not ok_conn and not ok_blogger and not blog_id:
         async with asyncio.TaskGroup() as tg:
             ok_name = tg.create_task(validate_blog_name(blog_name))
             ok_conn = tg.create_task(check_response_code(blog_name, s))
@@ -43,20 +47,32 @@ async def input_blog_address(s):
                 ok_name, ok_conn, ok_blogger, blog_id)
         if not ok_name:
             print('Inputted value contains more than blog`s name.')
+            ok_name = False
+            ok_conn = False
+            ok_blogger = False
             blog_name = input_func()
             continue
         if not ok_conn:
             print('Requested blog seems to not respond, try one more time.')
-            blog_name = input_func()
             ok_name = False
+            ok_conn = False
+            ok_blogger = False
+            blog_name = input_func()
+            continue
         if not ok_blogger:
             print('Requested blog seems not to be on blogger platform, try one more time.')
+            ok_name = False
+            ok_conn = False
+            ok_blogger = False
             blog_name = input_func()
-            ok_name, ok_conn = False
+            continue
         if not blog_id:
             print('Requested blog seems not to have an ID, try one more time.')
+            ok_name = False
+            ok_conn = False
+            ok_blogger = False
             blog_name = input_func()
-            ok_name, ok_conn, ok_blogger = False
+            continue
     return blog_id
 
 
@@ -93,22 +109,26 @@ async def is_blogger(url, session):
     blogger_in_link = False
     blogger_as_generator = False
     feed_in_link = False
-    async with session.get(url) as r:
-        r.encoding = 'UTF-8'
-        async for chunk in r.content.iter_chunked(1024):
-            chunk.decode('utf-8')
-            if not isinstance(link, re.Match):
-                blogger_in_link = bool(re.search(link, chunk))
-            if not isinstance(generator, re.Match):
-                blogger_as_generator = bool(re.search(generator, chunk))
-            if not isinstance(feed, re.Match):
-                feed_in_link = bool(re.search(feed, chunk))
-            if all([blogger_in_link, blogger_as_generator, feed_in_link]):
-                print('Blogger Valid')
-                return True
-            else:
-                print('Blogger Invalid')
-                return False
+    try:
+        async with session.get(url) as r:
+            r.encoding = 'utf-8'
+            async for chunk in r.content.iter_chunked(1024):
+                chunk.decode('utf-8')
+                if not blogger_in_link:
+                    blogger_in_link = bool(re.search(link, chunk))
+                if not blogger_as_generator:
+                    blogger_as_generator = bool(re.search(generator, chunk))
+                if not feed_in_link:
+                    feed_in_link = bool(re.search(feed, chunk))
+                if all([blogger_in_link, blogger_as_generator, feed_in_link]):
+                    print('Blogger Valid')
+                    return True
+            print('Blogger Invalid')
+            return False
+    except (aiohttp.client_exceptions.InvalidURL,
+            aiohttp.client_exceptions.ClientConnectorError):
+        print('is_blogger falls into except?')
+        return False
 
 
 async def get_blog_id(url, session):
@@ -121,7 +141,7 @@ async def get_blog_id(url, session):
             r.encoding = 'utf-8'
             async for chunk in r.content.iter_chunked(1600):
                 # print(chunk)
-                if not isinstance(blog_id, re.Match):
+                if not blog_id:
                     blog_id = re.search(blog_pattern, chunk)
                 if blog_id is not None:
                     return blog_id.group(1).decode(encoding='UTF-8')
