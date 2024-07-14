@@ -78,7 +78,9 @@ async def check_response_code(to_check, session):
             else:
                 print('Connection Invalid')
                 return False
-    except (aiohttp.client_exceptions.InvalidURL, aiohttp.client_exceptions.ClientConnectorError):
+    except (aiohttp.client_exceptions.InvalidURL,
+            aiohttp.client_exceptions.ClientConnectorError,
+            aiohttp.client_exceptions.ClientConnectionError):
         print('Connection Error')
         return False
 
@@ -107,7 +109,8 @@ async def is_blogger(url, session):
             print('Blogger Invalid')
             return False
     except (aiohttp.client_exceptions.InvalidURL,
-            aiohttp.client_exceptions.ClientConnectorError):
+            aiohttp.client_exceptions.ClientConnectorError,
+            aiohttp.client_exceptions.ClientConnectionError):
         print('Blogger Invalid')
         return False
 
@@ -127,7 +130,9 @@ async def get_blog_id(url, session):
                 if blog_id is not None:
                     return blog_id.group(1).decode(encoding='UTF-8')
             return False
-    except (aiohttp.client_exceptions.InvalidURL, aiohttp.client_exceptions.ClientConnectorError):
+    except (aiohttp.client_exceptions.InvalidURL,
+            aiohttp.client_exceptions.ClientConnectorError,
+            aiohttp.client_exceptions.ClientConnectionError):
         return False
 
 
