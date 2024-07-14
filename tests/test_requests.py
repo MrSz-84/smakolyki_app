@@ -432,9 +432,6 @@ async def test_validate_blog_name() -> None:
     assert await req.validate_blog_name(provide_names()) is True, 'Should be True but is False'
 
 
-# TODO Change the way of testing, to one using pytest async_aiohttp. Use tutorial on package docs
-#  by setting a web app, and serwer responses responses.
-
 @pytest.mark.asyncio
 async def test_response_code(aiohttp_client, capsys) -> None:
     """
@@ -550,6 +547,9 @@ async def test_response_code(aiohttp_client, capsys) -> None:
     # requests_mock.get(url, exc=requests.ConnectionError)
     # assert req.check_response_code(name) is False
 
+
+# TODO Change the way of testing, to one using pytest async_aiohttp. Use tutorial on package docs
+#  by setting a web app, and serwer responses responses. Similarly to test_response_code.
 
 
 # def test_is_blogger(requests_mock):
