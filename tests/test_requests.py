@@ -1,12 +1,10 @@
 import pytest
 import json
 import sys
-import requests
 import aiohttp
-import asyncio
+# import asyncio
 from aioresponses import aioresponses
-from aiohttp import web, ClientSession
-from pytest_mock import mocker
+from aiohttp import ClientSession
 
 from config import config as cnf
 from utils import request_handling as req
@@ -24,6 +22,13 @@ test_requests = {
     'by_path': 'https://www.googleapis.com/blogger/v3/blogs/None/posts/bypath?path=None&key=None',
     'comments': 'https://www.googleapis.com/blogger/v3/blogs/None/posts/None/comments?key=None',
 }
+
+
+@pytest.mark.asyncio
+async def test_connection_pool():
+    async with await req.ConnectionPool.get_session() as session:
+        async with await req.ConnectionPool.get_session() as second:
+            assert session is second
 
 
 def test_validate_error_message_key_present() -> None:
@@ -71,6 +76,17 @@ def test_validate_error_message_key_absent() -> None:
     request = 'i hate python`s path management'
     assert (
         req.validate_error_message(request, request_type) is False
+    ), 'should be False but was True'
+
+
+def test_validate_error_message_typeerr() -> None:
+    request_type = {
+        'by_url': 'https://www.googleapis.com/blogger/v3/blogs/byurl?url=?key=',
+        'by_id': 44}
+
+    request = 'by_id'
+    assert (
+            req.validate_error_message(request, request_type) is False
     ), 'should be False but was True'
 
 
