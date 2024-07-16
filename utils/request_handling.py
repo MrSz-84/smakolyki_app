@@ -33,7 +33,7 @@ async def input_blog_address(s):
         blog_url = f'https://{blog_name}.blogspot.com/'
         async with asyncio.TaskGroup() as tg:
             ok_name = tg.create_task(validate_blog_name(blog_name))
-            ok_conn = tg.create_task(check_response_code(blog_name, s))
+            ok_conn = tg.create_task(check_response_code(blog_url, s))
             ok_blogger = tg.create_task(is_blogger(blog_url, s))
             blog_id = tg.create_task(get_blog_id(blog_url, s))
             ok_name, ok_conn, ok_blogger, blog_id = await asyncio.gather(
@@ -59,7 +59,7 @@ async def input_blog_address(s):
 
 async def validate_blog_name(name):
     user_input = name.lower().strip()
-    hits = re.compile(r'^https?|/$|\Dblogspot|\Dcom|[\s!@#$%&*+=,[]{}\\/:;?.]')
+    hits = re.compile(r'^https?|/$|\Dblogspot|\Dcom|[\s!@#$%&*+=,[]{}\\/:;?.]| ')
     if not bool(re.search(hits, user_input)):
         print('Name Valid')
         return True
@@ -69,7 +69,7 @@ async def validate_blog_name(name):
 
 
 async def check_response_code(to_check, session):
-    url = f'https://{to_check}.blogspot.com/'
+    url = to_check
     try:
         async with session.get(url) as r:
             if r.status == 200:
@@ -86,23 +86,23 @@ async def check_response_code(to_check, session):
 
 
 async def is_blogger(url, session):
-    link = re.compile(rb'.blogger.com/')
-    generator = re.compile(rb"<meta content='blogger' name='generator'/>")
-    feed = re.compile(rb'/feeds/posts/default')
+    link = re.compile(r'.blogger.com/')
+    generator = re.compile(r"<meta content='blogger' name='generator'/>")
+    feed = re.compile(r'/feeds/posts/default')
     blogger_in_link = False
     blogger_as_generator = False
     feed_in_link = False
     try:
         async with session.get(url) as r:
-            r.encoding = 'utf-8'
+            # r.encoding = 'utf-8'
             async for chunk in r.content.iter_chunked(1024):
-                chunk.decode('utf-8')
+                decoded = chunk.decode('utf-8')
                 if not blogger_in_link:
-                    blogger_in_link = bool(re.search(link, chunk))
+                    blogger_in_link = bool(re.search(link, decoded))
                 if not blogger_as_generator:
-                    blogger_as_generator = bool(re.search(generator, chunk))
+                    blogger_as_generator = bool(re.search(generator, decoded))
                 if not feed_in_link:
-                    feed_in_link = bool(re.search(feed, chunk))
+                    feed_in_link = bool(re.search(feed, decoded))
                 if all([blogger_in_link, blogger_as_generator, feed_in_link]):
                     print('Blogger Valid')
                     return True
@@ -111,24 +111,25 @@ async def is_blogger(url, session):
     except (aiohttp.client_exceptions.InvalidURL,
             aiohttp.client_exceptions.ClientConnectorError,
             aiohttp.client_exceptions.ClientConnectionError):
-        print('Blogger Invalid')
+        print('Blogger Connection Error')
         return False
 
 
 async def get_blog_id(url, session):
-    blog_pattern = re.compile(rb'blog-([0-9]+)<', re.I)
+    blog_pattern = re.compile(r'blog-([0-9]+)<', re.I)
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
     url = f'{url}feeds/posts/default'
     try:
         async with session.get(url) as r:
-            r.encoding = 'utf-8'
+            # r.encoding = 'utf-8'
             async for chunk in r.content.iter_chunked(1600):
+                decoded = chunk.decode('utf-8')
                 # print(chunk)
                 if not blog_id:
-                    blog_id = re.search(blog_pattern, chunk)
+                    blog_id = re.search(blog_pattern, decoded)
                 if blog_id is not None:
-                    return blog_id.group(1).decode(encoding='UTF-8')
+                    return blog_id.group(1)  # .decode(encoding='utf-8')
             return False
     except (aiohttp.client_exceptions.InvalidURL,
             aiohttp.client_exceptions.ClientConnectorError,
