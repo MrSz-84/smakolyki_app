@@ -4,7 +4,8 @@ import sys
 import requests
 import aiohttp
 import asyncio
-from aiohttp import web
+from aioresponses import aioresponses
+from aiohttp import web, ClientSession
 from pytest_mock import mocker
 
 from config import config as cnf
@@ -164,9 +165,10 @@ async def test_input_blog_address_goes_towards_validation(monkeypatch: pytest.Mo
     """
     valid = 'learningpythonway'
     invalid = 'http://foobar.blogspot.com'
-    user_inputs = iter([invalid, invalid, invalid, valid])
     valid_url = f'https://{valid}.blogspot.com/'
+    invalid_url = f'https://{invalid}.blogspot.com/'
     id = '12345'
+    user_inputs = iter([invalid, invalid, invalid, valid])
 
     def mock_input_func() -> str:
         return next(user_inputs)
@@ -174,18 +176,18 @@ async def test_input_blog_address_goes_towards_validation(monkeypatch: pytest.Mo
     async def mock_validate_blog_name(name: str) -> bool:
         return name == valid
 
-    async def mock_check_response_code(name: str, session: aiohttp.ClientSession()) -> bool:
-        return name == valid
-
-    async def mock_is_blogger(url: str, session: aiohttp.ClientSession()) -> bool:
+    async def mock_check_response_code(url: str, session: ClientSession()) -> bool:
         return url == valid_url
 
-    async def mock_get_blog_id(url: str, session: aiohttp.ClientSession()) -> str | bool:
+    async def mock_is_blogger(url: str, session: ClientSession()) -> bool:
+        return url == valid_url
+
+    async def mock_get_blog_id(url: str, session: ClientSession()) -> str | bool:
         if url == valid_url:
             return id
         return False
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -214,16 +216,16 @@ async def test_input_blog_address_raises_runtime(monkeypatch: pytest.MonkeyPatch
     async def mock_validate_blog_name(name: str) -> bool:
         return name == valid
 
-    async def mock_check_response_code(name: str, session: aiohttp.ClientSession()) -> bool:
+    async def mock_check_response_code(name: str, session: ClientSession()) -> bool:
         return name == valid
 
-    async def mock_is_blogger(url: str, session: aiohttp.ClientSession()) -> bool:
+    async def mock_is_blogger(url: str, session: ClientSession()) -> bool:
         return url == valid_url
 
-    async def mock_get_blog_id(url: str, session: aiohttp.ClientSession()) -> str | bool:
+    async def mock_get_blog_id(url: str, session: ClientSession()) -> str | bool:
         return False
 
-    async with (aiohttp.ClientSession() as session):
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -257,16 +259,16 @@ async def test_input_blog_address_output_name_validation(monkeypatch: pytest.Mon
     async def mock_validate_blog_name(name: str) -> bool:
         return name == valid
 
-    async def mock_check_response_code(name: str, session:aiohttp.ClientSession) -> bool:
+    async def mock_check_response_code(name: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_is_blogger(url: str, session:aiohttp.ClientSession) -> bool:
+    async def mock_is_blogger(url: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_get_blog_id(url: str, session:aiohttp.ClientSession) -> str | bool:
+    async def mock_get_blog_id(url: str, session: ClientSession) -> str | bool:
         return id
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -278,7 +280,6 @@ async def test_input_blog_address_output_name_validation(monkeypatch: pytest.Mon
         captured = capsys.readouterr()
         assert 'Inputted value contains more than blog`s name.' in captured.out
         assert 'Requested blog seems to not respond, try one more time.' not in captured.out
-
 
 
 @pytest.mark.asyncio
@@ -303,16 +304,16 @@ async def test_input_blog_address_output_response_validation(monkeypatch: pytest
     async def mock_validate_blog_name(name:str) -> bool:
         return True
 
-    async def mock_check_response_code(name: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_check_response_code(name: str, session: ClientSession) -> bool:
         return name == valid
 
-    async def mock_is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_is_blogger(url: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
+    async def mock_get_blog_id(url: str, session: ClientSession) -> str | bool:
         return id
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -347,16 +348,16 @@ async def test_input_blog_address_output_is_blogger(monkeypatch: pytest.MonkeyPa
     async def mock_validate_blog_name(name:str) -> bool:
         return True
 
-    async def mock_check_response_code(name: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_check_response_code(name: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_is_blogger(url: str, session: ClientSession) -> bool:
         return False
 
-    async def mock_get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
+    async def mock_get_blog_id(url: str, session: ClientSession) -> str | bool:
         return id
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -392,16 +393,16 @@ async def test_input_blog_address_output_get_blog_id(monkeypatch: pytest.MonkeyP
     async def mock_validate_blog_name(name:str) -> bool:
         return True
 
-    async def mock_check_response_code(name: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_check_response_code(name: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
+    async def mock_is_blogger(url: str, session: ClientSession) -> bool:
         return True
 
-    async def mock_get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
+    async def mock_get_blog_id(url: str, session: ClientSession) -> str | bool:
         return False
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         monkeypatch.setattr('utils.request_handling.input_func', mock_input_func)
         monkeypatch.setattr('utils.request_handling.validate_blog_name', mock_validate_blog_name)
         monkeypatch.setattr('utils.request_handling.check_response_code', mock_check_response_code)
@@ -433,196 +434,127 @@ async def test_validate_blog_name() -> None:
 
 
 @pytest.mark.asyncio
-async def test_response_code(aiohttp_client, capsys) -> None:
+async def test_response_code_aiosesponses(capsys: pytest.fixture) -> None:
     """
     Test for intercepting requests and mocking the responses.
     Asserts function behaviour for different response codes.
-    :param aiohttp_client: The aiohttp_client fixture available from pytest-aiohttp plugin,
-    which allows the creation of a client to make requests to test the app.
     :param capsys: Pytest's built-in fixture
     :return: None
     """
-    valid_response = 'foobazbar'
-    invalid_response = 'foobazbaromg'
-    totally_wrong_url = 'some_verry_bad_url.blogspot.pl'
-    blogs = iter([valid_response, invalid_response, totally_wrong_url])
+    valid = 'https://validresponse.blogspot.com/'
+    invalid = 'https://invalidvalidresponse.blogspot.com/'
+    error = 'https://errorresponse.blogspot.com/'
 
-    def provide_data() -> tuple[str, str]:
-        name_ = next(blogs)
-        address = f'https://{name_}.blogspot.com/'
-        return name_, address
+    async with ClientSession() as s:
+        with aioresponses() as r:
+            r.get(valid, status=200)
+            resp = await req.check_response_code(valid, s)
+            assert resp is True
+        with aioresponses() as rr:
+            rr.get(invalid, status=400)
+            resp = await req.check_response_code(invalid, s)
+            assert resp is False
+        with aioresponses() as err:
+            err.get(error, exception=aiohttp.client_exceptions.InvalidURL(error))
+            resp = await req.check_response_code(error, s)
+            assert resp is False
 
-    async def server(request):
-        if request.path == f'/https://{valid_response}.blogspot.com/':
-            return web.Response(text='Valid blog address. Valid response', status=200)
-        elif request.path == f'/https://{invalid_response}.blogspot.com/':
-            return web.Response(text='Blog is private, does not exist or something.', status=400)
-        else:
-            return web.Response(text='Invalid address', status=404)
-
-    app = web.Application()
-    app.router.add_get(f'/https://{valid_response}.blogspot.com/', server)
-    app.router.add_get(f'/https://{invalid_response}.blogspot.com/', server)
-    app.router.add_get('/not-responding', server)
-    client = await aiohttp_client(app)
-
-    async with aiohttp.ClientSession() as session:
-        name, url = provide_data()
-        resp = await client.get(f'/{url}')
-        assert resp.status == 200
-        assert await req.check_response_code(name, session) is True
-
-        name, url = provide_data()
-        resp = await client.get(f'/{url}')
-        assert resp.status == 400
-        assert await req.check_response_code(name, session) is False
-
-        name, url = provide_data()
-        resp = await client.get(f'/{url}')
-        assert resp.status == 404
-        assert await req.check_response_code(name, session) is False
-        captured = capsys.readouterr()
-        assert 'Connection Error' in captured.out
-        assert 'Connection Invalid' in captured.out
-        assert 'Connection Valid' in captured.out
-
-        resp = await client.get('/not-responding')
-        assert resp.status == 404
+    collected = capsys.readouterr()
+    assert 'Connection Valid' in collected.out
+    assert 'Connection Invalid' in collected.out
+    assert 'Connection Error' in collected.out
 
 
-# @pytest.mark.asyncio
-# async def test_response_code_error(aiohttp_client, monkeypatch: pytest.MonkeyPatch) -> None:
-#     """
-#
-#     :param aiohttp_client:
-#     :param monkeypatch:
-#     :return:
-#     """
-#
-#     valid_response = 'foobazbar'
-#     invalid_response = 'foobazbaromg'
-#     totally_wrong_url = 'some_verry_bad_url.blogspot.pl'
-#     blogs = iter([totally_wrong_url, valid_response, invalid_response])
-#
-#     def provide_data() -> tuple[str, str]:
-#         name_ = next(blogs)
-#         address = f'https://{name_}.blogspot.com/'
-#         return name_, address
-#
-#     class MockClientSession(aiohttp.ClientSession):
-#         async def request(self, *args, **kwargs):
-#             url_ = args[0]
-#             if url_ == f'https://{totally_wrong_url}.blogspot.pl/':
-#                 raise aiohttp.InvalidURL
-#
-#     async def server(request):
-#         if request.path == f'/https://{valid_response}.blogspot.com/':
-#             return web.Response(text='Valid blog address. Valid response', status=200)
-#         elif request.path == f'/https://{invalid_response}.blogspot.com/':
-#             return web.Response(text='Blog is private, does not exist or something.', status=400)
-#         else:
-#             return web.Response(text='Invalid address', status=404)
-#
-#     app = web.Application()
-#     app.router.add_get(f'/https://{valid_response}.blogspot.com/', server)
-#     app.router.add_get(f'/https://{invalid_response}.blogspot.com/', server)
-#     app.router.add_get('/not-responding', server)
-#     client = await aiohttp_client(app)
-#
-#     monkeypatch.setattr(aiohttp, 'ClientSession', MockClientSession)
-#
-#     async with aiohttp.ClientSession() as session:
-#         name, url = provide_data()
-#         with pytest.raises(aiohttp.ClientConnectorError):
-#             await req.check_response_code(name, session)
-#         assert await req.check_response_code(name, session) is False
+@pytest.mark.asyncio
+async def test_is_blogger(capsys: pytest.fixture) -> None:
+    """
+    Test for intercepting requests and mocking the responses.
+    Asserts response body for different situations
+    :param capsys: Pytest's built-in fixture
+    :return: None
+    """
 
-    # requests_mock.get(url, status_code=200)
-    # assert req.check_response_code(name) is True
-    # name, url = provide_data()
-    # requests_mock.get(url, status_code=404)
-    # assert req.check_response_
-    # code(name) is False
-    # name, url = provide_data()
-    # requests_mock.get(url, exc=requests.ConnectionError)
-    # assert req.check_response_code(name) is False
+    url_val = 'http://validresponse.blogspot.com/'
+    url_inval_1 = 'https://invalidresponse1.blogspot.com/'
+    url_inval_2 = 'https://invalidresponse2.blogspot.com/'
+    url_inval_3 = 'https://invalidresponse3.blogspot.com/'
+    url_error = 'https://errorresponse.blogspot.com/'
+    res_val = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    res_inval_1 = '''some fancy text missing some fancy link as b _ l _ o_gger._com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    res_inval_2 = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' but wait now way this is here!
+     name='generator'/>
+     and some more links containing /feeds/posts/default and some more text'''
+    res_inval_3 = '''some fancy text containing some fancy link as .blogger.com/
+     and even more fancy text containing <meta content='blogger' name='generator'/>
+     and some more links containing /feedsaresonothere/postsarelost/defaultdefalttoNone
+     and some more text'''
+
+    async with ClientSession() as s:
+        with aioresponses() as r:
+            r.get(url_val, body=res_val)
+            resp = await req.is_blogger(url_val, s)
+            assert resp is True
+            r.get(url_inval_1, body=res_inval_1)
+            resp = await req.is_blogger(url_inval_1, s)
+            assert resp is False
+            r.get(url_inval_2, body=res_inval_2)
+            resp = await req.is_blogger(url_inval_2, s)
+            assert resp is False
+            r.get(url_inval_3, body=res_inval_3)
+            resp = await req.is_blogger(url_inval_3, s)
+            assert resp is False
+            r.get(url_error, exception=aiohttp.client_exceptions.ClientConnectionError())
+            resp = await req.is_blogger(url_error, s)
+            assert resp is False
+            captured = capsys.readouterr()
+            assert 'Blogger Valid' in captured.out
+            assert 'Blogger Invalid' in captured.out
+            assert 'Blogger Connection Error' in captured.out
 
 
-# TODO Change the way of testing, to one using pytest async_aiohttp. Use tutorial on package docs
-#  by setting a web app, and serwer responses responses. Similarly to test_response_code.
+@pytest.mark.asyncio
+async def test_get_blog_id(capsys: pytest.fixture) -> None:
+    """
+    Test for intercepting requests and mocking the responses.
+    Asserts response body for blog id number.
+    :param capsys: Pytest's built-in fixture
+    :return: None
+    """
 
+    valid = 'https://validresponse.blogspot.com/'
+    mocked_valid = 'https://validresponse.blogspot.com/feeds/posts/default'
+    invalid = 'https://invalidresponse.blogspot.com/'
+    mocked_invalid = 'https://invalidresponse.blogspot.com/feeds/posts/default'
+    error = 'https://errorrsponse.blogspot.com/'
+    mocked_error = 'https://errorrsponse.blogspot.com/feeds/posts/default'
 
-# def test_is_blogger(requests_mock):
-#     """
-#     Test for intercepting requests and mocking the responses.
-#     Asserts function behaviour for different response text. Validates if url is a .blogger.com blog
-#     :param requests_mock: requests_mock fixture, for intercepting requests send to HTTP servers.
-#     :return: None
-#     """
-#     url = 'https://validresponse.blogspot.com/'
-#     res_text = '''some fancy text containing some fancy link as .blogger.com/
-#      and even more fancy text containing <meta content='blogger' name='generator'/>
-#      and some more links containing /feeds/posts/default and some more text'''
-#     requests_mock.get(url, text=res_text)
-#     assert req.is_blogger(url) is True
-#
-#     url = 'https://invalidresponse.blogspot.com/'
-#     res_text = '''some fancy text missing some fancy link as b _ l _ o_gger._com/
-#      and even more fancy text containing <meta content='blogger' name='generator'/>
-#      and some more links containing /feeds/posts/default and some more text'''
-#     requests_mock.get(url, text=res_text)
-#     assert req.is_blogger(url) is None
-#
-#     url = 'https://invalidresponse.blogspot.com/'
-#     res_text = '''some fancy text containing some fancy link as .blogger.com/
-#      and even more fancy text containing <meta content='blogger' but wait now way this is here!
-#      name='generator'/>
-#      and some more links containing /feeds/posts/default and some more text'''
-#     requests_mock.get(url, text=res_text)
-#     assert req.is_blogger(url) is None
-#
-#     url = 'https://invalidresponse.blogspot.com/'
-#     res_text = '''some fancy text containing some fancy link as .blogger.com/
-#      and even more fancy text containing <meta content='blogger' name='generator'/>
-#      and some more links containing /feedsaresonothere/postsarelost/defaultdefalttoNone
-#      and some more text'''
-#     requests_mock.get(url, text=res_text)
-#     assert req.is_blogger(url) is None
-#
-#
-# def test_get_blog_id(requests_mock):
-#     """
-#     Test for intercepting requests and mocking the responses.
-#     Asserts function behaviour for different response text. Validates if function extracts blog ID
-#     :param requests_mock: requests_mock fixture, for intercepting requests send to HTTP servers.
-#     :return: None
-#     """
-#     url = 'https://validresponse.blogspot.com/'
-#     mocked_url = 'https://validresponse.blogspot.com/feeds/posts/default'
-#     res_text = '''fancy text containing >blog-66666666699996< and nothing more i think :)'''
-#     requests_mock.get(mocked_url, text=res_text)
-#     assert req.get_blog_id(url) == '66666666699996'
-#
-#     url = 'https://validresponse.blogspot.com/'
-#     mocked_url = 'https://validresponse.blogspot.com/feeds/posts/default'
-#     res_text = '''fancy text containing >blog-1234567890< and nothing more i think :)'''
-#     requests_mock.get(mocked_url, text=res_text)
-#     assert req.get_blog_id(url) == '1234567890'
-#
-#     url = 'https://invalidresponse.blogspot.com/'
-#     mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
-#     res_text = '''fancy text containing >1234567890< and nothing more i think :)'''
-#     requests_mock.get(mocked_url, text=res_text)
-#     assert req.get_blog_id(url) is None
-#
-#     url = 'https://invalidresponse.blogspot.com/'
-#     mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
-#     res_text = '''fancy text containing >blog-< and nothing more i think :)'''
-#     requests_mock.get(mocked_url, text=res_text)
-#     assert req.get_blog_id(url) is None
-#     #
-#     url = 'https://invalidresponse.blogspot.com/'
-#     mocked_url = 'https://invalidresponse.blogspot.com/feeds/posts/default'
-#     res_text = '''but wait! where is the blog id?'''
-#     requests_mock.get(mocked_url, text=res_text)
-#     assert req.get_blog_id(url) is None
+    async with ClientSession() as s:
+        with aioresponses() as r:
+            r.get(mocked_valid,
+                  body='fancy text containing >blog-66666666699996< and nothing more I think :)')
+            resp = await req.get_blog_id(valid, s)
+            assert resp == '66666666699996'
+            r.get(mocked_valid,
+                  body='fancy text containing >blog-1234567890< and nothing more I think :)')
+            resp = await req.get_blog_id(valid, s)
+            assert resp == '1234567890'
+            r.get(mocked_invalid,
+                  body='fancy text containing >1234567890< and nothing more I think :)')
+            resp = await req.get_blog_id(invalid, s)
+            assert resp is False
+            r.get(mocked_invalid, body='fancy text containing >blog-< and nothing more i think :)')
+            resp = await req.get_blog_id(invalid, s)
+            assert resp is False
+            r.get(mocked_invalid, body='but wait! where is the blog id?')
+            resp = await req.get_blog_id(invalid, s)
+            assert resp is False
+            r.get(mocked_error, body='oh no! and error! what do we do?!',
+                  exception=aiohttp.client_exceptions.InvalidURL(mocked_error))
+            resp = await req.get_blog_id(error, s)
+            assert resp is False
+
