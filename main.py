@@ -14,8 +14,12 @@ async def main():
         api_key = json.load(file)['Authorization']
 
     async with await req.ConnectionPool.get_session() as session:
-        blog_id = await req.input_blog_address(session)
+        blog_id = False
+        while not blog_id:
+            blog_id = await req.input_blog_address(session)
         print('blog id: ', blog_id)
+        await req.extract_blog_info(api_key, blog_id, session)
+
 
     end = time.time()
     print(f'Elapsed: {end - start:.2f}')
