@@ -138,7 +138,7 @@ async def get_blog_id(url, session):
 
 
 def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth=None, phrase=None,
-                       post_path=None, base_req_body=''):
+                       post_path=None, base_req_body=cnf.API_BASE_REQ):
     # for post_path use such structure "YYYY/MM/post-title.html" for instance
     # "/2011/08/latest-updates-august-1st.html"
     # base_req_body = 'https://www.googleapis.com/blogger/v3/blogs/'
@@ -169,3 +169,10 @@ def validate_error_message(request, requests_pool):
         except TypeError:
             return False
     return none_present
+
+
+async def extract_blog_info(key, blog_id, session):
+    req_url = return_request_url(req_type='by_id', blog_id=blog_id, auth=key)
+    async with session.get(req_url) as r:
+        dump = await r.json(encoding='utf-8')
+        print(json.dumps(dump, indent=2, ensure_ascii=False))
