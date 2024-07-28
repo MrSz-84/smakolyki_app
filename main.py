@@ -17,8 +17,11 @@ async def main():
         blog_id = False
         while not blog_id:
             blog_id = await req.input_blog_address(session)
-        print('blog id: ', blog_id)
-        await req.extract_blog_info(api_key, blog_id, session)
+        blog_info = await req.extract_blog_info(api_key, blog_id, session)
+        print(json.dumps(blog_info, indent=2, ensure_ascii=False))
+        posts_info = await req.extract_posts_info(api_key, blog_id, session)
+        # print(json.dumps(posts_info, indent=2, ensure_ascii=False))
+        print(len(posts_info))
 
 
     end = time.time()
