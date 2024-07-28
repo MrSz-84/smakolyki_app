@@ -9,20 +9,20 @@ class ConnectionPool:
     __session = None
 
     @classmethod
-    async def get_session(cls):
+    async def get_session(cls) -> aiohttp.ClientSession:
         if cls.__session is None:
             cls.__session = aiohttp.ClientSession()
         return cls.__session
 
 
-def input_func():
+def input_func() -> str:
     the_input = input('Type in blog`s name: ')
     if len(the_input) == 0:
         the_input = cnf.BASE_BLOG_NAME
     return the_input
 
 
-async def input_blog_address(s):
+async def input_blog_address(s: aiohttp.ClientSession) -> str:
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
     blog_name = input_func()
     ok_name = False
@@ -57,7 +57,7 @@ async def input_blog_address(s):
     return blog_id
 
 
-async def validate_blog_name(name):
+async def validate_blog_name(name: str) -> bool:
     user_input = name.lower().strip()
     hits = re.compile(r'^https?|/$|\Dblogspot|\Dcom|[\s!@#$%&*+=,[]{}\\/:;?.]| ')
     if not bool(re.search(hits, user_input)):
@@ -68,7 +68,7 @@ async def validate_blog_name(name):
         return False
 
 
-async def check_response_code(to_check, session):
+async def check_response_code(to_check: str, session: aiohttp.ClientSession) -> bool:
     url = to_check
     try:
         async with session.get(url) as r:
@@ -85,7 +85,7 @@ async def check_response_code(to_check, session):
         return False
 
 
-async def is_blogger(url, session):
+async def is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
     link = re.compile(r'.blogger.com/')
     generator = re.compile(r"<meta content='blogger' name='generator'/>")
     feed = re.compile(r'/feeds/posts/default')
@@ -115,7 +115,7 @@ async def is_blogger(url, session):
         return False
 
 
-async def get_blog_id(url, session):
+async def get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
     blog_pattern = re.compile(r'blog-([0-9]+)<', re.I)
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
@@ -137,8 +137,9 @@ async def get_blog_id(url, session):
         return False
 
 
-def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth=None, phrase=None,
-                       post_path=None, base_req_body=cnf.API_BASE_REQ):
+def return_request_url(req_type: str, blog_url: str = None, blog_id: str = None,
+                       post_id: str = None, auth: str = None, phrase: str = None,
+                       post_path: str = None, base_req_body: str = cnf.API_BASE_REQ) -> str:
     # for post_path use such structure "YYYY/MM/post-title.html" for instance
     # "/2011/08/latest-updates-august-1st.html"
     # base_req_body = 'https://www.googleapis.com/blogger/v3/blogs/'
@@ -160,7 +161,7 @@ def return_request_url(req_type, blog_url=None, blog_id=None, post_id=None, auth
         return req_types.get(req_type)
 
 
-def validate_error_message(request, requests_pool):
+def validate_error_message(request: str, requests_pool: dict) -> bool:
     if request not in requests_pool.keys():
         return False
     else:
@@ -171,8 +172,80 @@ def validate_error_message(request, requests_pool):
     return none_present
 
 
-async def extract_blog_info(key, blog_id, session):
+async def extract_blog_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> json:
     req_url = return_request_url(req_type='by_id', blog_id=blog_id, auth=key)
     async with session.get(req_url) as r:
         dump = await r.json(encoding='utf-8')
-        print(json.dumps(dump, indent=2, ensure_ascii=False))
+        return dump
+
+
+async def get_posts(url, session, next_page=None):
+    url += f'&pageToken={next_page}' if next_page else ''
+    async with session.get(url) as resp:
+        dump = await resp.json(encoding='utf-8')
+        print('token in get_posts', dump.get('nextPageToken', None))
+        return dump.get('items', []), dump.get('nextPageToken', None)
+
+
+async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> json:
+    req_url = return_request_url(req_type='posts', blog_id=blog_id, auth=key)
+    posts = []
+    next_page = None
+    # batch_size = 5
+    counter = 0
+    titles = []
+    the_first_post = False
+
+    while True:
+        tasks = [get_posts(req_url, session, next_page)]
+        results = await asyncio.gather(*tasks)
+        for items, next_page in results:
+            posts.extend(items)
+            print(f'next_page is {next_page}')
+            for post in items:
+                if post.get('title', '') not in titles:
+                    titles.append(post.get('title', ''))
+                if 'Jabłuszkowiec - ciasto ucierane z jabłkami' in post.get('title', ''):
+                    the_first_post = True
+        if not next_page:
+            counter += 1
+            if counter >= 2:
+                print(counter)
+                print('In break')
+                break
+
+    # tasks = []
+        # for _ in range(batch_size):
+        #     tasks.append(get_posts(req_url, session, next_page))
+        #     # next_page = None
+        # results = await asyncio.gather(*tasks)
+        # for items, next_page in results:
+        #     posts.extend(items)
+        #     print(f'next_page is {next_page}')
+        #     for post in items:
+        #         if post.get('title', '') not in titles:
+        #             titles.append(post.get('title', ''))
+        #         if 'Jabłuszkowiec - ciasto ucierane z jabłkami' in post.get('title', ''):
+        #             the_first_post = True
+        # if not next_page:
+        #     counter += 1
+        #     if counter >= 20:
+        #         print(counter)
+        #         print('In break')
+        #         break
+
+    print('Found first post:', the_first_post)
+    print(titles)
+    print(len(titles))
+    print(len(posts))
+    return posts
+
+
+async def get_more_posts(url, token, session):
+    url += f'&pageToken={token}'
+    async with session.get(url) as r:
+        data = await r.json(encoding='utf-8')
+        next_page = data.get('nextPageToken', '')
+        next_batch = data.get('items', [])
+    return next_page, next_batch
+
