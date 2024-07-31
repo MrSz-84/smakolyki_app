@@ -6,6 +6,10 @@ import config.config as cnf
 
 
 class ConnectionPool:
+    """
+    A place to spin up and hold connection pool via aiohttp ClientSession()
+    """
+
     __session = None
 
     @classmethod
@@ -16,6 +20,13 @@ class ConnectionPool:
 
 
 def input_func() -> str:
+    """
+    User input gatherer function
+
+    :rtype: str
+    :return: user input or base blog name if no input was given
+    """
+
     the_input = input('Type in blog`s name: ')
     if len(the_input) == 0:
         the_input = cnf.BASE_BLOG_NAME
@@ -23,6 +34,15 @@ def input_func() -> str:
 
 
 async def input_blog_address(s: aiohttp.ClientSession) -> str:
+    """
+    Validation loop for user input. It requires that entered name has specific format.
+    If validation checks are good, it proceeds with the program. Returns blog ID number.
+
+    :param s: aiohttp.ClientSession object
+    :rtype: str
+    :return: blog id number
+    """
+
     print('What blog hosted on Blogger would you like to see? Omit .blogspot.com and http parts.')
     blog_name = input_func()
     ok_name = False
@@ -58,6 +78,13 @@ async def input_blog_address(s: aiohttp.ClientSession) -> str:
 
 
 async def validate_blog_name(name: str) -> bool:
+    """
+    Validator for blog name. Uses re, to match unwanted name elements.
+    :param name: blog name entered by the user.
+    :rtype: bool
+    :return: validation check, true or false
+    """
+
     user_input = name.lower().strip()
     hits = re.compile(r'^https?|/$|\Dblogspot|\Dcom|[\s!@#$%&*+=,[]{}\\/:;?.]| ')
     if not bool(re.search(hits, user_input)):
@@ -69,10 +96,20 @@ async def validate_blog_name(name: str) -> bool:
 
 
 async def check_response_code(to_check: str, session: aiohttp.ClientSession) -> bool:
+    """
+    Validator for response code. If 200, it means the blog is up and working, and we can
+    proceed with our stuff.
+
+    :param to_check: url of the blog to check the status response
+    :param session: aiohttp.ClientSession
+    :rtype: bool
+    :return: returns true or false based on validation check.
+    """
+
     url = to_check
     try:
-        async with session.get(url) as r:
-            if r.status == 200:
+        async with session.get(url) as resp:
+            if resp.status == 200:
                 print('Connection Valid')
                 return True
             else:
@@ -86,6 +123,15 @@ async def check_response_code(to_check: str, session: aiohttp.ClientSession) -> 
 
 
 async def is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
+    """
+    Checks if given url is a valid blooger blog. Then returns validation results.
+
+    :param url: url of the blog to be checked
+    :param session: aiohttp.ClientSession
+    :rtype: bool
+    :return: result of the validation
+    """
+
     link = re.compile(r'.blogger.com/')
     generator = re.compile(r"<meta content='blogger' name='generator'/>")
     feed = re.compile(r'/feeds/posts/default')
@@ -93,9 +139,9 @@ async def is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
     blogger_as_generator = False
     feed_in_link = False
     try:
-        async with session.get(url) as r:
+        async with session.get(url) as resp:
             # r.encoding = 'utf-8'
-            async for chunk in r.content.iter_chunked(1024):
+            async for chunk in resp.content.iter_chunked(1024):
                 decoded = chunk.decode('utf-8')
                 if not blogger_in_link:
                     blogger_in_link = bool(re.search(link, decoded))
@@ -116,14 +162,25 @@ async def is_blogger(url: str, session: aiohttp.ClientSession) -> bool:
 
 
 async def get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
+    """
+    Fetches and returns blog id. It is needed to perform API calls for posts and other information.
+    Because concurrency, we cannot be sure is given blog is valid, so we either return an ID, or
+    information about false validation.
+
+    :param url: blog url
+    :param session: aiohttp.ClientSession
+    :rtype: str | bool
+    :return: blog id in str format, or if certain things cannot be found, false validation result
+    """
+
     blog_pattern = re.compile(r'blog-([0-9]+)<', re.I)
     # user_pattern = re.compile(r'profile/([0-9]*)<', re.I)
     blog_id = ''
     url = f'{url}feeds/posts/default'
     try:
-        async with session.get(url) as r:
+        async with session.get(url) as resp:
             # r.encoding = 'utf-8'
-            async for chunk in r.content.iter_chunked(1600):
+            async for chunk in resp.content.iter_chunked(1600):
                 decoded = chunk.decode('utf-8')
                 # print(chunk)
                 if not blog_id:
@@ -140,6 +197,29 @@ async def get_blog_id(url: str, session: aiohttp.ClientSession) -> str | bool:
 def return_request_url(req_type: str, blog_url: str = None, blog_id: str = None,
                        post_id: str = None, auth: str = None, phrase: str = None,
                        post_path: str = None, base_req_body: str = cnf.API_BASE_REQ) -> str:
+    """
+    A function building urls for request calls. Based on need it can provide urls for id retrieval
+    by blog name, blog information by id, posts information, single post data, search request for
+    posts to the API, post information by path, and post comments.
+
+    For post_path use such structure "YYYY/MM/post-title.html" for instance
+    "/2011/08/latest-updates-august-1st.html"
+    base_req_body = 'https://www.googleapis.com/blogger/v3/blogs/'
+
+    :param req_type: indication what request url should be prepared
+    :param blog_url: url for the blog from which we want to get id information
+    :param blog_id: id for a specific blog
+    :param post_id: id for specific post
+    :param auth: Blogger v3 API authorization key, or OAuth
+    :param phrase: phrase to search for on the blog
+    :param post_path: path to a post
+    :param base_req_body: base for creation of the request body. Look in the function description
+    for details.
+    :raises ValueError: if incorrect or not all information were passed into this function
+    :rtype: str
+    :return: complete request url to Blogger v3 API
+    """
+
     # for post_path use such structure "YYYY/MM/post-title.html" for instance
     # "/2011/08/latest-updates-august-1st.html"
     # base_req_body = 'https://www.googleapis.com/blogger/v3/blogs/'
@@ -162,6 +242,16 @@ def return_request_url(req_type: str, blog_url: str = None, blog_id: str = None,
 
 
 def validate_error_message(request: str, requests_pool: dict) -> bool:
+    """
+    Function which provides error data for return_request_url() function, if incorrect data or
+    missing data are needed to proceede.
+
+    :param request: what type or url is needed for particular request
+    :param requests_pool: dict with requests types
+    :rtype: bool
+    :return: validation results.
+    """
+
     if request not in requests_pool.keys():
         return False
     else:
@@ -172,22 +262,54 @@ def validate_error_message(request: str, requests_pool: dict) -> bool:
     return none_present
 
 
-async def extract_blog_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> json:
+async def extract_blog_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> dict:
+    """
+    Function for extraction general information about the blog. Mainly number of posts.
+
+    :param key: authorization key
+    :param blog_id: as a component of a request url
+    :param session: aiohttp.ClientSession
+    :rtype: dict
+    :return: dict created from json response
+    """
     req_url = return_request_url(req_type='by_id', blog_id=blog_id, auth=key)
-    async with session.get(req_url) as r:
-        dump = await r.json(encoding='utf-8')
+    async with session.get(req_url) as resp:
+        dump = await resp.json(encoding='utf-8')
         return dump
 
 
-async def get_posts(url, session, next_page=None):
+async def get_posts(url: str, session: aiohttp.ClientSession,
+                    next_page: str = None) -> tuple[list[dict], str | None]:
+    """
+    Helper function for retrieving posts information from Blogger v3 API
+
+    :param url: request url
+    :param session: aiohttp.ClientSession
+    :param next_page: str
+    :rtype: tuple[list[dict], str | None]
+    :return: a tuple containing a list of dicts with the information about posts,
+    and a nextPageToken for further data retrieving.
+    """
+
     url += f'&pageToken={next_page}' if next_page else ''
     async with session.get(url) as resp:
         dump = await resp.json(encoding='utf-8')
-        print('token in get_posts', dump.get('nextPageToken', None))
+        # print('token in get_posts', dump.get('nextPageToken', None))
         return dump.get('items', []), dump.get('nextPageToken', None)
 
 
-async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> json:
+async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSession) -> list[dict]:
+    """
+    Main function for retrieving posts information until nextPageTokens are depleted, thus
+    information about all posts should be available.
+
+    :param key: authorization key
+    :param blog_id: as a component of a request url
+    :param session: aiohttp.ClientSession
+    :rtype: list[dict]
+    :return: list containing all blog posts information needed for creating a data structure
+    """
+
     req_url = return_request_url(req_type='posts', blog_id=blog_id, auth=key)
     posts = []
     next_page = None
@@ -201,7 +323,7 @@ async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSess
         results = await asyncio.gather(*tasks)
         for items, next_page in results:
             posts.extend(items)
-            print(f'next_page is {next_page}')
+            # print(f'next_page is {next_page}')
             for post in items:
                 if post.get('title', '') not in titles:
                     titles.append(post.get('title', ''))
@@ -209,30 +331,10 @@ async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSess
                     the_first_post = True
         if not next_page:
             counter += 1
-            if counter >= 2:
+            if counter >= 1:
                 print(counter)
                 print('In break')
                 break
-
-    # tasks = []
-        # for _ in range(batch_size):
-        #     tasks.append(get_posts(req_url, session, next_page))
-        #     # next_page = None
-        # results = await asyncio.gather(*tasks)
-        # for items, next_page in results:
-        #     posts.extend(items)
-        #     print(f'next_page is {next_page}')
-        #     for post in items:
-        #         if post.get('title', '') not in titles:
-        #             titles.append(post.get('title', ''))
-        #         if 'Jabłuszkowiec - ciasto ucierane z jabłkami' in post.get('title', ''):
-        #             the_first_post = True
-        # if not next_page:
-        #     counter += 1
-        #     if counter >= 20:
-        #         print(counter)
-        #         print('In break')
-        #         break
 
     print('Found first post:', the_first_post)
     print(titles)
@@ -241,11 +343,22 @@ async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSess
     return posts
 
 
-async def get_more_posts(url, token, session):
-    url += f'&pageToken={token}'
-    async with session.get(url) as r:
-        data = await r.json(encoding='utf-8')
-        next_page = data.get('nextPageToken', '')
-        next_batch = data.get('items', [])
-    return next_page, next_batch
+async def get_single_post_data(auth: str, session: aiohttp.ClientSession, blog_id: str,
+                               post_id: str) -> dict:
+    """
+    Helper function for retrieving single post data
+
+    :param auth: authorization key
+    :param session: aiohttp.ClientSession
+    :param blog_id: as a component of a request url
+    :param post_id: id for specific post as a component of a request url
+    :rtype: dict
+    :return: json duped into dict with complete information contained in the post
+    """
+
+    url = return_request_url(req_type='post', blog_id=blog_id, post_id=post_id, auth=auth)
+
+    async with session.get(url) as resp:
+        dump = await resp.json(encoding='utf-8')
+    return dump
 
