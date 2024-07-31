@@ -1,5 +1,4 @@
 import re
-import json
 import aiohttp
 import asyncio
 import config.config as cnf
@@ -7,7 +6,7 @@ import config.config as cnf
 
 class ConnectionPool:
     """
-    A place to spin up and hold connection pool via aiohttp ClientSession()
+    A place to spin up and hold connection pool via aiohttp ClientSession().
     """
 
     __session = None
@@ -21,7 +20,7 @@ class ConnectionPool:
 
 def input_func() -> str:
     """
-    User input gatherer function
+    User input gatherer function.
 
     :rtype: str
     :return: user input or base blog name if no input was given
@@ -244,7 +243,7 @@ def return_request_url(req_type: str, blog_url: str = None, blog_id: str = None,
 def validate_error_message(request: str, requests_pool: dict) -> bool:
     """
     Function which provides error data for return_request_url() function, if incorrect data or
-    missing data are needed to proceede.
+    missing data are needed to proceed.
 
     :param request: what type or url is needed for particular request
     :param requests_pool: dict with requests types
@@ -281,7 +280,7 @@ async def extract_blog_info(key: str, blog_id: str, session: aiohttp.ClientSessi
 async def get_posts(url: str, session: aiohttp.ClientSession,
                     next_page: str = None) -> tuple[list[dict], str | None]:
     """
-    Helper function for retrieving posts information from Blogger v3 API
+    Helper function for retrieving posts information from Blogger v3 API.
 
     :param url: request url
     :param session: aiohttp.ClientSession
@@ -344,21 +343,38 @@ async def extract_posts_info(key: str, blog_id: str, session: aiohttp.ClientSess
 
 
 async def get_single_post_data(auth: str, session: aiohttp.ClientSession, blog_id: str,
-                               post_id: str) -> dict:
+                               post_id: str) -> dict[dict]:
     """
-    Helper function for retrieving single post data
+    Helper function for retrieving single post data.
 
     :param auth: authorization key
     :param session: aiohttp.ClientSession
     :param blog_id: as a component of a request url
     :param post_id: id for specific post as a component of a request url
-    :rtype: dict
+    :rtype: dict[dict]
     :return: json duped into dict with complete information contained in the post
     """
 
     url = return_request_url(req_type='post', blog_id=blog_id, post_id=post_id, auth=auth)
-
     async with session.get(url) as resp:
         dump = await resp.json(encoding='utf-8')
     return dump
 
+
+async def get_comments(auth: str, session: aiohttp.ClientSession,
+                       blog_id: str, post_id: str) -> dict[dict]:
+    """
+    Helper function for retrieving single post's comments.
+
+    :param auth: authorization key
+    :param session: aiohttp.ClientSession
+    :param blog_id: as a component of a request url
+    :param post_id: id for specific post as a component of a request url
+    :rtype: dict[dict]
+    :return: json duped into dict with complete information contained in the post's comments
+    """
+
+    url = return_request_url(req_type='comments', blog_id=blog_id, post_id=post_id, auth=auth)
+    async with session.get(url) as resp:
+        dump = await resp.json(encoding='utf-8')
+    return dump
