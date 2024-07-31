@@ -19,12 +19,14 @@ async def main():
             blog_id = await req.input_blog_address(session)
         # blog_info = await req.extract_blog_info(api_key, blog_id, session)
         # print(json.dumps(blog_info, indent=2, ensure_ascii=False))
-        posts_info = await req.extract_posts_info(api_key, blog_id, session)
+        # posts_info = await req.extract_posts_info(api_key, blog_id, session)
         # print(json.dumps(posts_info, indent=2, ensure_ascii=False))
         # print(len(posts_info))
-        print(json.dumps(posts_info[25], indent=2, ensure_ascii=False))
+        # print(json.dumps(posts_info[25], indent=2, ensure_ascii=False))
         post_info = await req.get_single_post_data(api_key, session, blog_id, '9066838238541463668')
         print(json.dumps(post_info, indent=2, ensure_ascii=False))
+        comments = await req.get_comments(api_key, session, blog_id, '9066838238541463668')
+        print(json.dumps(comments, indent=2, ensure_ascii=False))
 
 
     end = time.time()
